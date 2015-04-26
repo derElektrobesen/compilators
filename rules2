@@ -1,0 +1,5 @@
+G = { S A B } { a b } P S
+S -> a
+S -> A
+A -> AB
+B -> b
