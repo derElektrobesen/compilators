@@ -6,14 +6,24 @@ import Data.List
 import Data.Maybe
 import Data.Either
 import Data.String
+import Data.Set (toList, fromList)
+
+-- data
 
 data Term = Term Char
     deriving (Eq, Ord, Show)
 data NonTerm = NonTerm Char
     deriving (Eq, Ord, Show)
 
-data Rule = Rule NonTerm [Either Term NonTerm]
+type RPart = [Either Term NonTerm]
+data Rule = Rule NonTerm RPart
     deriving (Eq, Ord, Show)
+
+rRulePart :: Rule -> RPart
+rRulePart (Rule _ l) = l
+
+lRulePart :: Rule -> NonTerm
+lRulePart (Rule r _) = r
 
 data Grammar = Grammar { nonTermList :: [NonTerm]
                        , termList :: [Term]
@@ -21,6 +31,8 @@ data Grammar = Grammar { nonTermList :: [NonTerm]
                        , startSym :: NonTerm
                        } deriving (Eq, Ord, Show)
 emptyGrammar = Grammar { nonTermList = [], termList = [], ruleList = [], startSym = NonTerm '\0' }
+
+-- parsing
 
 parseNonTerms :: [String] -> [NonTerm] -> ([NonTerm], [String])
 parseNonTerms (h:l) t
@@ -49,7 +61,7 @@ parseGrammar s (h:l) g
     | s == TermsParsed = parseGrammar RulesSignParsed l g
     | s == RulesSignParsed = Grammar (nonTermList g) (termList g) (ruleList g) $ NonTerm $ head h
 
-parseRPart :: String -> Grammar -> [Either Term NonTerm] -> [Either Term NonTerm]
+parseRPart :: String -> Grammar -> RPart -> RPart
 parseRPart (h:l) g t
     | (NonTerm h) `elem` (nonTermList g) = parseRPart l g (t ++ [Right $ NonTerm h])
     | (Term h) `elem` (termList g) = parseRPart l g (t ++ [Left $ Term h])
@@ -70,11 +82,60 @@ parseLines (g:l) =
     let grammar = parseGrammar ParseStart (words g) emptyGrammar
     in parseRules l grammar
 
+-- algorithms
+
+filterRulesImpl :: [Rule] -> (Rule -> Bool) -> [Rule] -> [Rule]
+filterRulesImpl (h:rules) f already_filtered
+    | f h       = filterRulesImpl rules f (already_filtered ++ [h])
+    | otherwise = filterRulesImpl rules f already_filtered
+filterRulesImpl [] _ r = r
+
+filterRules :: (Rule -> Bool) -> [Rule] -> [Rule]
+filterRules f r = filterRulesImpl r f []
+
+emptyLangFilterNT :: [NonTerm] -> NonTerm -> Bool
+emptyLangFilterNT (nt:list) non_term
+    | nt == non_term = True
+    | otherwise      = emptyLangFilterNT list non_term
+emptyLangFilterNT [] _ = False
+
+emptyLangFilter :: [Term] -> [NonTerm] -> RPart -> Bool
+emptyLangFilter terms non_terms (t:not_processed) =
+    case t of
+        Left term       -> next
+        Right non_term  -> if emptyLangFilterNT non_terms non_term  then next else False
+    where next = emptyLangFilter terms non_terms not_processed
+emptyLangFilter _ _ [] = True
+
+findNiChainImpl :: Grammar -> [NonTerm] -> [Rule]
+findNiChainImpl g previous_chain = filterRules (\rule -> emptyLangFilter (termList g) previous_chain (rRulePart rule)) $ ruleList g
+
+findNiChain :: Grammar -> [NonTerm] -> [NonTerm]
+findNiChain g previous_chain =
+    let new_chain = findNiChainImpl g previous_chain
+    in toList $ fromList $ map (\rule -> lRulePart rule) new_chain
+
+findNeChainImpl :: Grammar -> [NonTerm] -> [NonTerm]
+findNeChainImpl g previous_chain =
+    let new_chain = findNiChain g previous_chain
+    in if new_chain == previous_chain then new_chain else findNeChainImpl g new_chain
+
+findNeChain :: Grammar -> [NonTerm]
+findNeChain g = findNeChainImpl g []
+
+isLanguageEmpty :: Grammar -> Bool
+isLanguageEmpty g =
+    let ne_chain = findNeChain g
+    in if (startSym g) `elem` ne_chain then True else False
+
+-- main
+
 main = do (fileName:_) <- getArgs
           fileExists <- doesFileExist fileName
           if fileExists
               then do contents <- readFile fileName
-                      let rules = parseLines $ lines contents
-                      putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
-                      putStrLn $ show rules
+                      let grammar = parseLines $ lines contents
+                          ne_chain = findNeChain grammar
+                      putStrLn $ show grammar
+                      putStrLn $ show ne_chain
               else do putStrLn "The file doesn't exist!"

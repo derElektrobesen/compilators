@@ -1,5 +1,7 @@
-G = { S A B } { a b } P S
+G = { S A B D } { a b c } P S
 S -> a
 S -> A
 A -> AB
 B -> b
+A -> cD
+D -> cB
