@@ -1,10 +1,8 @@
-GHC = ghc
-OPTS =
+BIN = Lab2 Lab3
 
-SRC=Lab2.hs
-
-all: $(SRC)
-	$(GHC) $(OPTS) $^ -o $^.o
+all:
+	@ghc --make Lab2
+	@ghc --make Lab3
 
 clean:
-	rm -f *.o *.hi
+	rm -f *.o *.hi Lab2 Lab3

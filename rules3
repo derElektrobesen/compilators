@@ -1,0 +1,8 @@
+w = a*a
+G = { E T F } { + * ( ) a } P E
+E -> T+E
+E -> T
+T -> F*T
+T -> F
+F -> (E)
+F -> a
