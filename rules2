@@ -4,4 +4,4 @@ S -> A
 A -> AB
 B -> b
 A -> cD
-D -> cB
+D -> cA
