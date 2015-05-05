@@ -1,0 +1,30 @@
+G = {{ F A A` B Sum Mult Cmp Term Term` Factor Factor` Number Symbol Program Block OperatorsList Operator Tail }} {{ + - * / % < = <= == >= > <> ( ) ^ 0 1 2 3 4 5 6 7 8 9 a b c e { } ; }} P Program
+
+Program -> Block
+Block -> { OperatorsList }
+OperatorsList -> Operator Tail
+Operator -> Symbol = F | Block
+Tail -> ; Operator Tail | eps
+
+F -> A Cmp A
+A -> Term A` | Sum Term A`
+A` -> Sum Term A` | eps
+Term -> Factor Term`
+Term` -> Mult Factor Term` | eps
+Factor -> B Factor`
+Factor` -> ^ B Factor` | eps
+B -> Number | Symbol | ( A )
+Sum -> + | -
+Mult -> * | / | %
+Cmp -> < | <= | == | >= | > | <>
+Number -> 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+Symbol -> a | b | c | e
+
+w = {
+    a = 7 < 3 ;
+    b = 3 * a + 7 == 1 ;
+    {
+        b = b + 4 ^ 5 < 8
+    }
+    c = a == 1
+}

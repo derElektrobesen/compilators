@@ -92,11 +92,12 @@ parseWChain [] _ = []
 
 parseLines :: [String] -> Grammar -> (Grammar, Maybe [Term])
 parseLines (line:tail) g
+    | line == "" = parseLines tail g
     | Just (_, _, _, a) <- matchRegexAll grammar_re line = parseLines tail (parseGrammar a)
     | Just (_, _, _, a) <- matchRegexAll rule_re line = parseLines tail (parseRule a g)
-    | Just (_, _, _, (a:_)) <- matchRegexAll w_chain_re line = (g, Just $ parseWChain (words a) g)
+    | Just (_, _, _, (a:_)) <- matchRegexAll w_chain_re line = (g, Just $ parseWChain (words (a ++ (unwords tail))) g)
     | otherwise = error $ "Invalid line in input: " ++ line
-    where grammar_re = makeRegex "^G = {(.*)} {(.*)} P (.+)$"
+    where grammar_re = makeRegex "^G = {{(.*)}} {{(.*)}} P (.+)$"
           rule_re = makeRegex "^(.*) -> (.*)$"
           w_chain_re = makeRegex "^w = (.*)$"
 parseLines [] g = (g, Nothing)

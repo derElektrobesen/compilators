@@ -1,8 +1,7 @@
-BIN = Lab2 Lab3
+BIN = Lab2 Lab3 Lab4
 
 all:
-	@ghc --make Lab2
-	@ghc --make Lab3
+	@for var in ${BIN}; do ghc --make $$var; done
 
 clean:
-	rm -f *.o *.hi Lab2 Lab3 *~
+	rm -f *.o *.hi ${BIN} *~
