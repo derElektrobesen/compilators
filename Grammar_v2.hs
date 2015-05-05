@@ -1,6 +1,7 @@
 module Grammar_v2 where
 
 import Data.List
+import Data.List.Split
 import Text.Regex
 import Text.Regex.Posix
 
@@ -66,14 +67,19 @@ parseRPart (atom:other) g
     | otherwise = error $ "Invalid atom came: " ++ atom
 parseRPart [] _ = []
 
+createRule :: NonTerm -> [String] -> Grammar -> [Rule]
+createRule l_part (head:tail) g =
+    (Rule l_part (parseRPart (words head) g)) : (createRule l_part tail g)
+createRule _ [] _ = []
+
 parseRule :: [String] -> Grammar -> Grammar
 parseRule (l_part:r_part:[]) g =
     let (l_rule_part:_) = words l_part
-        r_rule_part = words r_part
+        r_rule_part = splitOn "|" r_part
     in Grammar
         { nonTermList = (nonTermList g)
         , termList = (termList g)
-        , ruleList = (ruleList g) ++ [Rule (NonTerm l_rule_part) (parseRPart r_rule_part g)]
+        , ruleList = (ruleList g) ++ (createRule (NonTerm l_rule_part) r_rule_part g)
         , startSym = (startSym g)
         }
 

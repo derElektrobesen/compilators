@@ -1,0 +1,12 @@
+G = { F A B Sum Mult Cmp Term Factor Number Symbol } { + - * / % < <= = >= > <> ( ) ^ 0 1 2 3 4 5 6 7 8 9 a b c d e f } P F
+F -> A Cmp A
+A -> Term | Sum Term | A Sum Term
+Term -> Factor | Term Mult Factor
+Factor -> B | Factor ^ B
+B -> Number | Symbol | ( A )
+Sum -> + | -
+Mult -> * | / | %
+Cmp -> < | <= | = | >= | > | <>
+Number -> 3 | 4
+Symbol -> a | b
+w = - 3 <> 4
