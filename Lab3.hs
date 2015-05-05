@@ -55,49 +55,39 @@ parseWChain g ('w':' ':'=':' ':l) = parseWChainImpl g l []
 parseWChain _ _ = error "Invalid w chain format"
 
 -- algorithms
+
+applyChoice :: [Rule] -> [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
+applyChoice (cur_rule:other_rules) all_rules terms (Configuration Q pos fc ((Right atom):sc)) =
+    let conf = Configuration Q pos fc ((Right atom):sc)
+        r = conf : grow all_rules terms (Configuration Q pos (fc ++ [Right (lRulePart cur_rule, ruleIndex cur_rule)]) ((rRulePart cur_rule) ++ sc))
+        last_conf = last r
+    in if state (last r) == T
+        then r
+        else r ++ applyChoice other_rules all_rules terms conf
+applyChoice [] _ _ conf =
+    [conf]
+
+grow :: [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
+grow rules_list terms (Configuration Q pos fc ((Right atom):sc)) =
+     applyChoice filtered rules_list terms (Configuration Q pos fc ((Right atom) : sc))
+     where filtered = filterRules rules_list atom
+grow rules_list (head_term:other_terms) (Configuration Q pos fc ((Left atom):sc))
+     | head_term == atom = passed : grow rules_list other_terms (Configuration Q (pos + 1) (fc ++ [Left atom]) sc)
+     | otherwise = passed : [Configuration B pos fc ((Left atom):sc)]
+     where passed = (Configuration Q pos fc ((Left atom):sc))
+grow rules_list [] (Configuration Q pos fc []) =
+     [(Configuration Q pos fc []), (Configuration T pos fc [])]
+grow rules_list [] (Configuration Q pos fc sc) =
+     [(Configuration Q pos fc sc), (Configuration B pos fc sc)]
+
 filterRules :: [Rule] -> NonTerm -> [Rule]
 filterRules (h:rules) nt
     | lRulePart h == nt = [h] ++ filterRules rules nt
     | otherwise = filterRules rules nt
 filterRules [] _ = []
 
-nextChoiceImpl :: [Rule] -> [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
-nextChoiceImpl (cur_rule:other_rules) all_rules terms (Configuration s pos fc (nt:sc)) =
-    let local_conf = Configuration Q pos (fc ++ [Right (lRulePart cur_rule, ruleIndex cur_rule)]) ((rRulePart cur_rule) ++ sc)
-        last_conf = Configuration s pos fc (nt:sc)
-        new_conf = last_conf : createConfigurationImpl all_rules terms local_conf
-        last_new_conf = last new_conf
-        to_retry = Configuration B pos fc (nt:sc)
-    in if state last_new_conf == B
-        then new_conf ++ (nextChoiceImpl other_rules all_rules terms to_retry)
-        else []                 -- success
-nextChoiceImpl [] _ _ _ = []    -- no more choices
-
-nextChoice :: [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
-nextChoice rules terms last_conf =
-    nextChoiceImpl real_rules rules terms last_conf
-    where
-        (Right nt:_) = secondChain last_conf
-        real_rules = filterRules rules nt
-
-createConfigurationImpl :: [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
-createConfigurationImpl rules (t:terms) last_conf =
-    case last_conf of
-        Configuration Q pos _ ((Right non_term):sc) ->
-            nextChoice rules (t:terms) last_conf
-        Configuration Q pos fc ((Left term):sc) ->
-            if term == t
-                then last_conf : (createConfigurationImpl rules terms $ Configuration Q (pos + 1) (fc ++ [Left term]) sc)
-                else last_conf : [Configuration B pos fc (secondChain last_conf)]
-        Configuration Q pos fc [] -> last_conf : [Configuration T pos fc []]
-createConfigurationImpl _ [] (Configuration _ pos fc []) = []
-createConfigurationImpl _ [] last_conf =
-    last_conf : [Configuration B ((position last_conf) - 1) (init $ firstChain last_conf) (last_sym : (secondChain last_conf))]
-    where (Left t) = last $ firstChain last_conf
-          last_sym = Left t
-
 createConfiguration :: Grammar -> [Term] -> [CurrentConfiguration]
-createConfiguration g c = createConfigurationImpl (ruleList g) c $ Configuration Q 0 [] [Right $ startSym g]
+createConfiguration g c = grow (ruleList g) c $ Configuration Q 0 [] [Right $ startSym g]
 -- main
 
 main = do (fileName:_) <- getArgs

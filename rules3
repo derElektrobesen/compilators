@@ -5,4 +5,4 @@ T -> F*T
 T -> F
 F -> (E)
 F -> a
-w = a*a
+w = a*(a+a)
