@@ -62,6 +62,7 @@ parseGrammar (non_terms:terms:first_rule:[]) =
 
 parseRPart :: [String] -> Grammar -> RPart
 parseRPart (atom:other) g
+    | atom == "eps" = parseRPart other g
     | (NonTerm atom) `elem` (nonTermList g) = (Right $ NonTerm atom) : (parseRPart other g)
     | (Term atom) `elem` (termList g) = (Left $ Term atom) : (parseRPart other g)
     | otherwise = error $ "Invalid atom came: " ++ atom

@@ -5,6 +5,7 @@ import Data.List
 import Data.Either
 import Data.Set (toList, fromList)
 import Grammar_v2
+import Debug.Trace
 
 type L1Chain = [Either Term (NonTerm, Integer)]
 type L2Chain = [Either Term NonTerm]
@@ -56,6 +57,7 @@ applyChoice [] _ _ conf _ =
     [conf]
 
 grow :: [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
+-- grow _ _ c | trace (show c) False = undefined
 grow rules_list terms (Configuration Q pos fc ((Right atom):sc)) =
      applyChoice filtered rules_list terms (Configuration Q pos fc ((Right atom) : sc)) 0
      where filtered = filterRules rules_list atom
@@ -65,7 +67,7 @@ grow rules_list (head_term:other_terms) (Configuration Q pos fc ((Left atom):sc)
      where passed = (Configuration Q pos fc ((Left atom):sc))
 grow rules_list [] (Configuration Q pos fc []) =
      [(Configuration Q pos fc []), (Configuration T pos fc [])]
-grow rules_list [] (Configuration Q pos fc sc) =
+grow rules_list _ (Configuration Q pos fc sc) =
      [(Configuration Q pos fc sc), (Configuration B pos fc sc)]
 
 filterRules :: [Rule] -> NonTerm -> [Rule]
