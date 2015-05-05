@@ -10,14 +10,17 @@ data NonTerm = NonTerm Char
     deriving (Eq, Ord)
 
 type RPart = [Either Term NonTerm]
-data Rule = Rule NonTerm RPart
+data Rule = Rule (NonTerm, Integer) RPart
     deriving (Eq, Ord)
 
 rRulePart :: Rule -> RPart
 rRulePart (Rule _ l) = l
 
 lRulePart :: Rule -> NonTerm
-lRulePart (Rule r _) = r
+lRulePart (Rule r _) = fst r
+
+ruleIndex :: Rule -> Integer
+ruleIndex (Rule r _) = snd r
 
 data Grammar = Grammar { nonTermList :: [NonTerm]
                        , termList :: [Term]
@@ -38,7 +41,7 @@ showRPart ((Right t):l) = show t ++ showRPart l
 showRPart [] = ""
 
 instance Show Rule where
-    show (Rule l r) = show l ++ " -> " ++ showRPart r
+    show (Rule l r) = show (fst l) ++ " -> " ++ showRPart r
 
 instance Show Grammar where
     show g =
@@ -75,15 +78,23 @@ parseGrammar s (h:l) g
         in parseGrammar TermsParsed list new_g
     | s == TermsParsed = parseGrammar RulesSignParsed l g
     | s == RulesSignParsed = Grammar (nonTermList g) (termList g) (ruleList g) $ NonTerm $ head h
+    | otherwise = error "Invalid grammar format"
 
 parseRPart :: String -> Grammar -> RPart -> RPart
 parseRPart (h:l) g t
     | (NonTerm h) `elem` (nonTermList g) = parseRPart l g (t ++ [Right $ NonTerm h])
     | (Term h) `elem` (termList g) = parseRPart l g (t ++ [Left $ Term h])
+    | otherwise = error $ "Invalid character found in rule definition: " ++ show h
 parseRPart [] _ t = t
 
+findRuleIndex :: [Rule] -> NonTerm -> Integer -> (NonTerm, Integer)
+findRuleIndex (h:l) t i
+    | lRulePart h == t && i <= ruleIndex h = findRuleIndex l t $ ruleIndex h + 1
+    | otherwise = findRuleIndex l t i
+findRuleIndex [] t i = (t, i)
+
 parseSingleRuleImpl :: [String] -> Grammar -> Rule
-parseSingleRuleImpl (nt:delim:l:[]) g = Rule (NonTerm $ head nt) $ parseRPart l g []
+parseSingleRuleImpl (nt:delim:l:[]) g = Rule (findRuleIndex (ruleList g) (NonTerm $ head nt) 0) $ parseRPart l g []
 
 parseSingleRule :: [String] -> Grammar -> Grammar
 parseSingleRule l g = Grammar (nonTermList g) (termList g) ((ruleList g) ++ [parseSingleRuleImpl l g]) (startSym g)

@@ -63,7 +63,7 @@ removeUnreachableSymbolsImpl g cur_chain =
     in if new_chain == cur_chain then new_chain else removeUnreachableSymbolsImpl g new_chain
 
 unreachableRulesFilter :: RPart -> Rule -> Bool
-unreachableRulesFilter chain (Rule t l) = (Right t) `elem` chain && (all (\e -> e `elem` chain) l)
+unreachableRulesFilter chain r = (Right $ lRulePart r) `elem` chain && (all (\e -> e `elem` chain) $ rRulePart r)
 
 removeUnreachableSymbols :: Grammar -> Grammar
 removeUnreachableSymbols g =

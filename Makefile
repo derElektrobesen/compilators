@@ -5,4 +5,4 @@ all:
 	@ghc --make Lab3
 
 clean:
-	rm -f *.o *.hi Lab2 Lab3
+	rm -f *.o *.hi Lab2 Lab3 *~
