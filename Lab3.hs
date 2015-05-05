@@ -4,7 +4,7 @@ import Control.Monad
 import Data.List
 import Data.Either
 import Data.Set (toList, fromList)
-import Grammar
+import Grammar_v2
 
 type L1Chain = [Either Term (NonTerm, Integer)]
 type L2Chain = [Either Term NonTerm]
@@ -42,34 +42,22 @@ instance Show CurrentConfiguration where
                 ++ (showL1Chain $ firstChain conf) ++ ", "
                 ++ (showL2Chain $ secondChain conf) ++ " )"
 
--- parsing
-
-parseWChainImpl :: Grammar -> String -> [Term] -> [Term]
-parseWChainImpl g (h:l) c
-    | (Term h) `elem` (termList g) = parseWChainImpl g l (c ++ [Term h])
-    | otherwise = error $ "Invalid term found in w chain: " ++ show h
-parseWChainImpl _ [] c = c
-
-parseWChain :: Grammar -> String -> [Term]
-parseWChain g ('w':' ':'=':' ':l) = parseWChainImpl g l []
-parseWChain _ _ = error "Invalid w chain format"
-
 -- algorithms
 
-applyChoice :: [Rule] -> [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
-applyChoice (cur_rule:other_rules) all_rules terms (Configuration Q pos fc ((Right atom):sc)) =
+applyChoice :: [Rule] -> [Rule] -> [Term] -> CurrentConfiguration -> Integer -> [CurrentConfiguration]
+applyChoice (cur_rule:other_rules) all_rules terms (Configuration Q pos fc ((Right atom):sc)) i =
     let conf = Configuration Q pos fc ((Right atom):sc)
-        r = conf : grow all_rules terms (Configuration Q pos (fc ++ [Right (lRulePart cur_rule, ruleIndex cur_rule)]) ((rRulePart cur_rule) ++ sc))
+        r = conf : grow all_rules terms (Configuration Q pos (fc ++ [Right (lRulePart cur_rule, i)]) ((rRulePart cur_rule) ++ sc))
         last_conf = last r
     in if state (last r) == T
         then r
-        else r ++ applyChoice other_rules all_rules terms conf
-applyChoice [] _ _ conf =
+        else r ++ applyChoice other_rules all_rules terms conf (i + 1)
+applyChoice [] _ _ conf _ =
     [conf]
 
 grow :: [Rule] -> [Term] -> CurrentConfiguration -> [CurrentConfiguration]
 grow rules_list terms (Configuration Q pos fc ((Right atom):sc)) =
-     applyChoice filtered rules_list terms (Configuration Q pos fc ((Right atom) : sc))
+     applyChoice filtered rules_list terms (Configuration Q pos fc ((Right atom) : sc)) 0
      where filtered = filterRules rules_list atom
 grow rules_list (head_term:other_terms) (Configuration Q pos fc ((Left atom):sc))
      | head_term == atom = passed : grow rules_list other_terms (Configuration Q (pos + 1) (fc ++ [Left atom]) sc)
@@ -95,8 +83,7 @@ main = do (fileName:_) <- getArgs
           if fileExists
               then do contents <- readFile fileName
                       let content_lines = lines contents
-                          grammar = parseLines $ init content_lines
-                          wchain = parseWChain grammar $ last content_lines
+                          (grammar, Just wchain) = parseLines content_lines emptyGrammar
                           conf = createConfiguration grammar wchain
                       putStrLn $ "w chain: " ++ (intercalate " " $ map show wchain)
                       putStrLn $ "Grammar: " ++ show grammar
