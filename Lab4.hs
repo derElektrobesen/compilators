@@ -6,9 +6,13 @@ import Data.Either
 import Data.Set (toList, fromList)
 import Grammar_v2
 import Debug.Trace
+import qualified Data.Map as Map
 
 data Tree = EmptyTree | EmptyLeaf | Leaf Term | Node NonTerm [Tree]
     deriving (Eq)
+
+duplicate :: [a] -> Int -> [a]
+duplicate = flip $ (concat .) . replicate
 
 instance Show Tree where
     show t =
@@ -16,7 +20,7 @@ instance Show Tree where
         where
             show_str v depth =
                 case () of
-                    () -> replicate (2 * depth) ' ' ++ v ++ "\n"
+                    () -> duplicate ". " depth ++ v ++ "\n"
             show_impl depth t =
                 case t of
                     EmptyTree -> show_str "EmptyTree" depth
@@ -51,6 +55,67 @@ mkTree :: Grammar -> [Term] -> Tree
 mkTree g w_chain =
     let (tree, _) = produce g w_chain (filterRules (ruleList g) (startSym g)) in tree
 
+data Func = Func Term [Term] [Term]
+
+operatorNonTerm = NonTerm "RealOperator"
+operatorSymbol = NonTerm "Symbol"
+operatorNumber = NonTerm "Number"
+
+operatorsPrio = Map.fromList $ map (\(t, p) -> (Term t, p))
+    [("^", 4)
+    ,("*", 3), ("/", 3), ("%", 3)
+    ,("+", 2), ("-", 2)
+    ,("==", 1), ("<", 1), ("<=", 1), (">", 1), (">=", 1) ,("<>", 1)
+    ,("=", 0)
+    ]
+
+getSymbol :: [Tree] -> Term
+getSymbol ((Leaf nt):[]) = nt
+getSymbol _ = error "Invalid tree built"
+
+buildReversePolishNotation_impl :: [Tree] -> [Term] -> ([Term], [Term])
+buildReversePolishNotation_impl trees terms | trace ("\n\ntrees: " ++ (show trees) ++ " OpStack: " ++ (show terms)) False = undefined
+buildReversePolishNotation_impl (t:trees) opStack =
+    ((new_sym ++ sym), last_opStack)
+    where
+        (new_sym, new_opStack) = buildReversePolishNotation t opStack
+        (sym, last_opStack) = buildReversePolishNotation_impl trees new_opStack
+buildReversePolishNotation_impl [] opStack = ([], opStack)
+
+buildReversePolishNotation :: Tree -> [Term] -> ([Term], [Term])
+buildReversePolishNotation (Node nt trees) opStack
+    | nt == operatorSymbol || nt == operatorNumber = ([getSymbol trees], opStack)
+    | otherwise = buildReversePolishNotation_impl trees opStack
+buildReversePolishNotation (Leaf t) opStack
+    | t == (Term ")") = ((reverse l), s)
+    | t == (Term "(") = ([], t : opStack)
+    | opStack == [] = ([], [t])
+    | prio_1 > prio_2 = ([], t : opStack)
+    | otherwise = (p_less, t : p_more)
+    where
+        Just prio_1 = Map.lookup t operatorsPrio
+        Just prio_2 = Map.lookup (head opStack) operatorsPrio
+        (s, (_ : l)) = span (/= (Term "(")) opStack
+        (p_less, p_more) = span (\x -> (Map.lookup x operatorsPrio) > (Just prio_1)) opStack
+buildReversePolishNotation _ opStack = ([], opStack)
+
+buildSentenses_impl :: [Tree] -> [[Term]]
+buildSentenses_impl (t:trees) = (buildSentenses t) ++ (buildSentenses_impl trees)
+buildSentenses_impl [] = []
+
+buildSentenses :: Tree -> [[Term]]
+buildSentenses (Node nt subtrees)
+    | nt == operatorNonTerm = [terms ++ opStack]
+    | otherwise = buildSentenses_impl subtrees
+    where (terms, opStack) = buildReversePolishNotation_impl subtrees []
+buildSentenses _ = []
+
+{-
+countVariables :: Tree -> Map NonTerm Int -> [NonTerm] -> [(NonTerm, Int)]
+countVariables (Node non_term trees) map stack
+    | tree 
+-}
+
 main = do (fileName:_) <- getArgs
           fileExists <- doesFileExist fileName
           if fileExists
@@ -58,7 +123,9 @@ main = do (fileName:_) <- getArgs
                       let content_lines = lines contents
                           (grammar, Just wchain) = parseLines content_lines emptyGrammar
                           tree = mkTree grammar wchain
+                          sentenses = buildSentenses tree
                       putStrLn $ "w chain: " ++ (intercalate " " $ map show wchain)
                       putStrLn $ "Grammar: " ++ show grammar
-                      putStrLn $ "Tree:\n" ++ show tree
+                      putStrLn $ "\nTree:\n" ++ show tree
+                      putStrLn $ "\n\nSentenses:\n" ++ show sentenses
               else do error "The file doesn't exist!"
