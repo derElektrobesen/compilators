@@ -73,7 +73,7 @@ getSymbol ((Leaf nt):[]) = nt
 getSymbol _ = error "Invalid tree built"
 
 buildReversePolishNotation_impl :: [Tree] -> [Term] -> ([Term], [Term])
-buildReversePolishNotation_impl trees terms | trace ("\n\ntrees: " ++ (show trees) ++ " OpStack: " ++ (show terms)) False = undefined
+--buildReversePolishNotation_impl trees terms | trace ("\n\ntrees: " ++ (show trees) ++ " OpStack: " ++ (show terms)) False = undefined
 buildReversePolishNotation_impl (t:trees) opStack =
     ((new_sym ++ sym), last_opStack)
     where
@@ -109,11 +109,41 @@ buildSentenses (Node nt subtrees)
     where (terms, opStack) = buildReversePolishNotation_impl subtrees []
 buildSentenses _ = []
 
-{-
-countVariables :: Tree -> Map NonTerm Int -> [NonTerm] -> [(NonTerm, Int)]
-countVariables (Node non_term trees) map stack
-    | tree 
--}
+countValue_impl :: String -> Int -> Int -> Int
+countValue_impl op a b
+    | op == "+" = a + b
+    | op == "-" = a - b
+    | op == "*" = a * b
+    | op == "/" = a `div` b
+    | op == "%" = a `mod` b
+    | op == "^" = a ^ b
+    | op == "<" = if a < b then 1 else 0
+    | op == "<=" = if a <= b then 1 else 0
+    | op == "==" = if a == b then 1 else 0
+    | op == "<>" = if a /= b then 1 else 0
+    | op == ">=" = if a >= b then 1 else 0
+    | op == ">" = if a > b then 1 else 0
+    | otherwise = error $ "Invalid operation: " ++ op
+
+countValue :: String -> [Int] -> (Int, [Int])
+countValue op (a : b : stack) = ((countValue_impl op a b), stack)
+
+countSingleVariable :: [Term] -> [Int] -> Map.Map Term Int -> Int
+--countSingleVariable terms stack _ | trace ("\n\nterms: " ++ (show terms) ++ " stack: " ++ (show stack)) False = undefined
+countSingleVariable ((Term h):chain) stack m
+    | "0" <= h && h <= "9" = countSingleVariable chain (stack ++ [read h :: Int]) m
+    | Just v <- Map.lookup (Term h) m = countSingleVariable chain (v:stack) m
+    | Map.member (Term h) operatorsPrio =
+        let (val, new_stack) = countValue h stack
+        in countSingleVariable chain (val:new_stack) m
+    | otherwise = error $ "Terminal " ++ show h ++ " is undefined"
+countSingleVariable [] (h:[]) _ = h
+
+countVariables :: [[Term]] -> Map.Map Term Int -> [(Term, Int)]
+countVariables ((v:sentense):other) m =
+    (v, val) : countVariables other (Map.insert v val m)
+    where val = countSingleVariable (init sentense) [] m
+countVariables [] _ = []
 
 main = do (fileName:_) <- getArgs
           fileExists <- doesFileExist fileName
@@ -123,8 +153,10 @@ main = do (fileName:_) <- getArgs
                           (grammar, Just wchain) = parseLines content_lines emptyGrammar
                           tree = mkTree grammar wchain
                           sentenses = buildSentenses tree
+                          variables = countVariables sentenses Map.empty
                       putStrLn $ "w chain: " ++ (intercalate " " $ map show wchain)
                       putStrLn $ "Grammar: " ++ show grammar
                       putStrLn $ "\nTree:\n" ++ show tree
                       putStrLn $ "\n\nSentenses:\n" ++ show sentenses
+                      putStrLn $ "\nVariables:\n" ++ show variables
               else do error "The file doesn't exist!"
