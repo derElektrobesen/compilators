@@ -101,3 +101,9 @@ parseLines (line:tail) g
           rule_re = makeRegex "^(.*) -> (.*)$"
           w_chain_re = makeRegex "^w = (.*)$"
 parseLines [] g = (g, Nothing)
+
+filterRules :: [Rule] -> NonTerm -> [Rule]
+filterRules (h:rules) nt
+    | lRulePart h == nt = [h] ++ filterRules rules nt
+    | otherwise = filterRules rules nt
+filterRules [] _ = []

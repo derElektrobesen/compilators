@@ -70,12 +70,6 @@ grow rules_list [] (Configuration Q pos fc []) =
 grow rules_list _ (Configuration Q pos fc sc) =
      [(Configuration Q pos fc sc), (Configuration B pos fc sc)]
 
-filterRules :: [Rule] -> NonTerm -> [Rule]
-filterRules (h:rules) nt
-    | lRulePart h == nt = [h] ++ filterRules rules nt
-    | otherwise = filterRules rules nt
-filterRules [] _ = []
-
 createConfiguration :: Grammar -> [Term] -> [CurrentConfiguration]
 createConfiguration g c = grow (ruleList g) c $ Configuration Q 0 [] [Right $ startSym g]
 -- main
@@ -87,7 +81,9 @@ main = do (fileName:_) <- getArgs
                       let content_lines = lines contents
                           (grammar, Just wchain) = parseLines content_lines emptyGrammar
                           conf = createConfiguration grammar wchain
+                          (Configuration s _ _ _) = last conf
                       putStrLn $ "w chain: " ++ (intercalate " " $ map show wchain)
                       putStrLn $ "Grammar: " ++ show grammar
                       putStrLn $ "\nConfiguration: \n" ++ (intercalate "\n" $ map show conf)
+                      if s == T then putStrLn "Correct chain\n" else putStrLn "Incorrect chain\n"
               else do error "The file doesn't exist!"
