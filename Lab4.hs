@@ -55,8 +55,6 @@ mkTree :: Grammar -> [Term] -> Tree
 mkTree g w_chain =
     let (tree, _) = produce g w_chain (filterRules (ruleList g) (startSym g)) in tree
 
-data Func = Func Term [Term] [Term]
-
 operatorNonTerm = NonTerm "RealOperator"
 operatorSymbol = NonTerm "Symbol"
 operatorNumber = NonTerm "Number"
@@ -65,8 +63,9 @@ operatorsPrio = Map.fromList $ map (\(t, p) -> (Term t, p))
     [("^", 4)
     ,("*", 3), ("/", 3), ("%", 3)
     ,("+", 2), ("-", 2)
-    ,("==", 1), ("<", 1), ("<=", 1), (">", 1), (">=", 1) ,("<>", 1)
-    ,("=", 0)
+    ,("(", 1), (")", 1)
+    ,("==", 0), ("<", 0), ("<=", 0), (">", 0), (">=", 0) ,("<>", 0)
+    ,("=", -1)
     ]
 
 getSymbol :: [Tree] -> Term
@@ -87,7 +86,7 @@ buildReversePolishNotation (Node nt trees) opStack
     | nt == operatorSymbol || nt == operatorNumber = ([getSymbol trees], opStack)
     | otherwise = buildReversePolishNotation_impl trees opStack
 buildReversePolishNotation (Leaf t) opStack
-    | t == (Term ")") = ((reverse l), s)
+    | t == (Term ")") = (s, (reverse l))
     | t == (Term "(") = ([], t : opStack)
     | opStack == [] = ([], [t])
     | prio_1 > prio_2 = ([], t : opStack)
